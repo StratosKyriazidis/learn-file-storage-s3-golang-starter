@@ -1,8 +1,6 @@
 package main
 
 import (
-	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -37,7 +35,6 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 
 	fmt.Println("uploading thumbnail for video", videoID, "by user", userID)
 
-	// TODO: implement the upload here
 	const maxMemory = 10 << 20
 	err = r.ParseMultipartForm(maxMemory)
 	if err != nil {
@@ -51,17 +48,12 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 	}
 	defer file.Close()
 
-	mediaType := header.Header.Get("content-type")
+	mediaType := strings.ToLower(strings.TrimSpace(header.Header.Get("Content-Type")))
 	if mediaType != "image/jpeg" && mediaType != "image/png" {
 		respondWithError(w, http.StatusBadRequest, "Unsupported image type", errors.New(""))
 		return
 	}
 
-	buf, err := io.ReadAll(file)
-	if err != nil {
-		respondWithError(w, http.StatusBadRequest, "Unable to read form file", err)
-		return
-	}
 	metadata, err := cfg.db.GetVideo(videoID)
 	if err != nil {
 		respondWithError(w, http.StatusBadRequest, "Unable to get video metadata", err)
@@ -72,17 +64,9 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	tnail := thumbnail{data: buf, mediaType: mediaType}
-	videoThumbnails[videoID] = tnail
-
 	parts := strings.Split(mediaType, "/")
 	fileExtension := parts[len(parts)-1]
-
-	randBytes := []byte{}
-	rand.Read(randBytes)
-	based := base64.RawURLEncoding.EncodeToString(randBytes)
-
-	fileName := fmt.Sprintf("%s.%s", based, fileExtension)
+	fileName := fmt.Sprintf("%s.%s", videoID.String(), fileExtension)
 	assetPath := filepath.Join(cfg.assetsRoot, fileName)
 
 	dst, err := os.Create(assetPath)
@@ -98,11 +82,7 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	thumbnailURL := fmt.Sprintf(
-		"http://localhost:%s/%s",
-		cfg.port,
-		dst.Name(),
-	)
+	thumbnailURL := fmt.Sprintf("http://localhost:%s/assets/%s", cfg.port, fileName)
 	metadata.ThumbnailURL = &thumbnailURL
 	err = cfg.db.UpdateVideo(metadata)
 	if err != nil {

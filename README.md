@@ -63,3 +63,17 @@ go run .
 - You should see a new database file `tubely.db` created in the root directory.
 - You should see a new `assets` directory created in the root directory, this is where the images will be stored.
 - You should see a link in your console to open the local web page.
+
+## Upload layout
+
+Uploaded thumbnails stay on the local filesystem and are served from:
+
+- `assets/<videoID>.<ext>`
+
+Uploaded videos are stored in S3 using an aspect-ratio prefix:
+
+- `landscape/<random>.mp4` for 16:9 videos
+- `portrait/<random>.mp4` for 9:16 videos
+- `other/<random>.mp4` for videos that do not match either ratio
+
+Before upload, videos are processed with `ffmpeg` using `-movflags faststart` so the MP4 metadata is moved to the start of the file for faster browser playback.
