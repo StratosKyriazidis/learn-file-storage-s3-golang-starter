@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -69,11 +71,18 @@ func (cfg *apiConfig) handlerUploadThumbnail(w http.ResponseWriter, r *http.Requ
 		respondWithError(w, http.StatusUnauthorized, "Unauthorized user", err)
 		return
 	}
+
 	tnail := thumbnail{data: buf, mediaType: mediaType}
 	videoThumbnails[videoID] = tnail
+
 	parts := strings.Split(mediaType, "/")
 	fileExtension := parts[len(parts)-1]
-	fileName := fmt.Sprintf("%s.%s", videoIDString, fileExtension)
+
+	randBytes := []byte{}
+	rand.Read(randBytes)
+	based := base64.RawURLEncoding.EncodeToString(randBytes)
+
+	fileName := fmt.Sprintf("%s.%s", based, fileExtension)
 	assetPath := filepath.Join(cfg.assetsRoot, fileName)
 
 	dst, err := os.Create(assetPath)
